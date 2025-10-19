@@ -4,24 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       value:
-        description: 'Value to update'
+        description: "Value from Minecraft"
         required: true
+        default: "hello"
 
 jobs:
-  update:
+  print:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Write data.json
+      - name: Echo input
         run: |
-          echo "{\"value\":\"${{ github.event.inputs.value }}\",\"updated_at\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > data.json
-
-      - name: Commit and push
+          echo "Value received: ${{ github.event.inputs.value }}"
+      # Example - write value into docs/value.txt and commit to main (optional)
+      - uses: actions/checkout@v4
+      - name: Write file
+        run: |
+          mkdir -p docs
+          echo "${{ github.event.inputs.value }}" > docs/value.txt
+      - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git commit -m "Update variable ${{ github.event.inputs.value }}" || echo "no changes"
+          git add docs/value.txt
+          git commit -m "Update value.txt from workflow_dispatch" || echo "No changes"
           git push
