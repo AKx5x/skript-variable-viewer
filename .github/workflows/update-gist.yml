@@ -1,0 +1,36 @@
+name: Update Gist data.json
+
+on:
+  workflow_dispatch:
+    inputs:
+      value:
+        description: "Value to write into the gist"
+        required: true
+        type: string
+
+jobs:
+  update-gist:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      GIST_ID: cd788f03a1d8c9a14a2f917ab71b7f43   # your gist id
+      FILE_NAME: data.json
+    steps:
+      - name: Build JSON payload
+        id: payload
+        run: |
+          NOW="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          printf '{"value":"%s","updated_at":"%s"}\n' "${{ github.event.inputs.value }}" "$NOW" > body.json
+          cat body.json
+
+      - name: Patch gist via API
+        run: |
+          jq -n --arg fn "$FILE_NAME" --argfile body body.json \
+            '{ files: { ($fn): { content: ($body|tostring) } } }' > patch.json
+          cat patch.json
+          curl -sS -X PATCH \
+            -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/gists/$GIST_ID \
+            -d @patch.json
