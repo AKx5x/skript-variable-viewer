@@ -1,25 +1,57 @@
-name: Update Skript Variable
+name: Update variable JSON
 
 on:
-  repository_dispatch:
-    types: [update-variable]
+  workflow_dispatch:
+    inputs:
+      value:
+        description: "Value to publish"
+        required: true
+        type: string
+      by:
+        description: "Sender (optional)"
+        required: false
+        type: string
+      ts:
+        description: "Timestamp ISO (optional)"
+        required: false
+        type: string
 
 jobs:
-  update:
+  write:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write   # allow commit with GITHUB_TOKEN
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Write data.json
+      - name: Make docs folder
+        run: mkdir -p docs
+
+      - name: Write JSON
         run: |
-          echo "{\"value\":\"${{ github.event.client_payload.value }}\",\"updated_at\":\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"}" > data.json
+          VALUE=${{ github.event.inputs.value }}
+          BY=${{ github.event.inputs.by }}
+          TS=${{ github.event.inputs.ts }}
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          cat > docs/data.json << 'JSON'
+          {
+            "value": "__VALUE__",
+            "updated_at": "__UPDATED__",
+            "by": "__BY__"
+          }
+          JSON
+
+          # fill placeholders safely
+          sed -i "s|__VALUE__|$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')|" docs/data.json
+          sed -i "s|__UPDATED__|${TS:-$NOW}|" docs/data.json
+          sed -i "s|__BY__|$(printf '%s' "$BY" | sed 's/[&/\]/\\&/g')|" docs/data.json
 
       - name: Commit and push
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.json
-          git commit -m "Update variable ${{ github.event.client_payload.value }}" || echo "no changes"
+          git add docs/data.json
+          git commit -m "update: ${{ github.event.inputs.value }}"
           git push
