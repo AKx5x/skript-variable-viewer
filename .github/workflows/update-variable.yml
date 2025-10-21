@@ -1,40 +1,26 @@
 name: Update variable JSON
-
 on:
   workflow_dispatch:
     inputs:
-      value:
-        description: "Value to publish"
-        required: true
-        type: string
-      by:
-        description: "Sender (optional)"
-        required: false
-        type: string
-      ts:
-        description: "Timestamp ISO (optional)"
-        required: false
-        type: string
+      value: { description: "Value", required: true, type: string }
+      by:    { description: "Sender", required: false, type: string }
+      ts:    { description: "Timestamp ISO", required: false, type: string }
 
 jobs:
   write:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # allow commit with GITHUB_TOKEN
+      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Make docs folder
-        run: mkdir -p docs
-
+      - uses: actions/checkout@v4
+      - run: mkdir -p docs
       - name: Write JSON
+        shell: bash
         run: |
           VALUE=${{ github.event.inputs.value }}
           BY=${{ github.event.inputs.by }}
           TS=${{ github.event.inputs.ts }}
           NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
           cat > docs/data.json << 'JSON'
           {
             "value": "__VALUE__",
@@ -42,16 +28,13 @@ jobs:
             "by": "__BY__"
           }
           JSON
-
-          # fill placeholders safely
           sed -i "s|__VALUE__|$(printf '%s' "$VALUE" | sed 's/[&/\]/\\&/g')|" docs/data.json
           sed -i "s|__UPDATED__|${TS:-$NOW}|" docs/data.json
           sed -i "s|__BY__|$(printf '%s' "$BY" | sed 's/[&/\]/\\&/g')|" docs/data.json
-
       - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/data.json
-          git commit -m "update: ${{ github.event.inputs.value }}"
+          git commit -m "update: ${{ github.event.inputs.value }}" || echo "no changes"
           git push
